@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto Pulse</title>
+    <!-- Include Bootstrap CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css">
+    <style>
+        body {
+            padding: 20px;
+        }
+        #homePage, #chat-container {
+            margin-top: 20px;
+        }
+        .crypto-table th, .crypto-table td {
+            text-align: center;
+        }
+        .hidden {
+            display: none;
+        }
+        .text-large {
+            font-size: 1.25rem;
+        }
+        .text-bold {
+            font-weight: bold;
+        }
+        #chat-container {
+            padding: 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        #messages {
+            height: 300px;
+            overflow-y: auto;
+            border-bottom: 1px solid #ccc;
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+        .message {
+            margin-bottom: 10px;
+        }
+        .timestamp {
+            font-size: 0.8em;
+            color: gray;
+        }
+        .current-user {
+            color: #007bff;
+        }
+        .other-user {
+            color: green;
+        }
+        @media (max-width: 576px) {
+            #messages {
+                height: 250px;
+            }
+        }
+        .crypto-logo {
+            width: 24px;
+            height: 24px;
+            margin-right: 10px;
+        }
+        .fade-update {
+            animation: fadeEffect 1.5s;
+        }
+        @keyframes fadeEffect {
+            0% { background-color: rgba(255, 0, 0, 0.2); }
+            100% { background-color: transparent; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 id="pageTitle" class="text-center mb-4">Crypto Pulse</h1>
+
+
+        <div class="row">
+            <!-- Left Column: Price List -->
+            <div id="homePage" class="col-lg-8">
+                <table class="table table-striped table-hover crypto-table">
+                    <thead class="table-dark">
+                        <tr>
+                            <th scope="col">Logo</th>
+                            <th scope="col">Name</th>
+                            <th scope="col">Price (USD)</th>
+                            <th scope="col">24h Change</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cryptoTableBody">
+                        <!-- Cryptocurrency data will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Right Column: Chat Box -->
+            <div id="chat-container" class="col-lg-4">
+                <div class="mb-3">
+                    <input type="text" id="usernameInput" class="form-control" placeholder="Enter your username">
+                    <button id="saveUsername" class="btn btn-secondary mt-2">Save Username</button>
+                </div>
+                <div id="messages" class="mb-3"></div>
+                <div class="input-group">
+                    <input type="text" id="messageInput" class="form-control" placeholder="Type a message">
+                    <button id="sendMessage" class="btn btn-primary">Send</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Details Page Content -->
+        <div id="detailsPage" class="hidden">
+            <h2 id="cryptoName" class="text-center text-bold mb-3">Crypto Details</h2>
+            <p id="cryptoDescription" class="mb-4"></p>
+            <h3 class="mb-3">Market Data</h3>
+            <ul class="list-group">
+                <li class="list-group-item text-large">Current Price: $<span id="cryptoPrice"></span></li>
+                <li class="list-group-item text-large">Market Cap: $<span id="cryptoMarketCap"></span></li>
+                <li class="list-group-item text-large">24h High: $<span id="cryptoHigh24h"></span></li>
+                <li class="list-group-item text-large">24h Low: $<span id="cryptoLow24h"></span></li>
+            </ul>
+            <button id="backButton" class="btn btn-primary mt-4">Back to Market</button>
+        </div>
+    </div>
+
+    <!-- Include Gun.js -->
+    <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+    <script>
+        // Initialize Gun with a relay server
+        const gun = Gun(['https://gun-manhattan.herokuapp.com/gun']);
+
+        // Reference the 'chat' node in Gun
+        const chat = gun.get('chat');
+
+        // DOM elements
+        const usernameInput = document.getElementById('usernameInput');
+        const saveUsernameButton = document.getElementById('saveUsername');
+        const messageInput = document.getElementById('messageInput');
+        const sendMessageButton = document.getElementById('sendMessage');
+        const messagesDiv = document.getElementById('messages');
+
+        // Track messages to avoid duplicates
+        const receivedMessages = new Set();
+
+        // Store the current username
+        let currentUsername = `User${Math.floor(Math.random() * 1000)}`;
+        usernameInput.value = currentUsername;
+
+        // Function to add message to the chat with timestamp
+        function addMessageToChat(username, message, timestamp) {
+            if (!receivedMessages.has(timestamp + message)) { // Check if the message has already been processed
+                receivedMessages.add(timestamp + message); // Mark the message as processed
+                const messageElement = document.createElement('div');
+                messageElement.classList.add('message');
+                const formattedTime = new Date(timestamp).toLocaleTimeString();
+
+                // Determine the class based on whether the message is from the current user or not
+                const usernameClass = username === currentUsername ? 'current-user' : 'other-user';
+
+                messageElement.innerHTML = `<strong class="${usernameClass}">${username}</strong>: ${message} <span class="timestamp">(${formattedTime})</span>`;
+                messagesDiv.appendChild(messageElement);
+                messagesDiv.scrollTop = messagesDiv.scrollHeight; // Auto-scroll to the latest message
+            }
+        }
+
+        // Attach listener to chat node
+        chat.map().on((data) => {
+            if (data && data.text && data.username && data.timestamp) {
+                addMessageToChat(data.username, data.text, data.timestamp);
+            }
+        });
+
+        // Send a message
+        sendMessageButton.addEventListener('click', () => {
+            const messageText = messageInput.value.trim();
+            const timestamp = Date.now(); // Get the current time
+
+            if (messageText) {
+                chat.set({
+                    username: currentUsername,
+                    text: messageText,
+                    timestamp: timestamp
+                });
+                messageInput.value = ''; // Clear input after sending
+            }
+        });
+
+        // Save the username
+        saveUsernameButton.addEventListener('click', () => {
+            const newUsername = usernameInput.value.trim();
+            if (newUsername) {
+                currentUsername = newUsername; // Update the current username
+            }
+        });
+
+        // Crypto Market Logic
+        document.addEventListener("DOMContentLoaded", function () {
+    fetchAndPopulateCryptoTable(); // Initial data load
+    setInterval(fetchAndPopulateCryptoTable, 30000); // Update every 30 seconds
+
+    // Handle "Back to Market" button click
+    document.getElementById('backButton').addEventListener('click', function() {
+        document.getElementById('detailsPage').classList.add('hidden');
+        document.getElementById('homePage').classList.remove('hidden');
+        document.getElementById('pageTitle').textContent = "Crypto Pulse";
+    });
+});
+
+
+        function fetchAndPopulateCryptoTable() {
+            const apiUrl = "https://api.coingecko.com/api/v3/coins/markets";
+            const queryParams = "?vs_currency=usd&order=market_cap_desc&per_page=30&page=1&sparkline=false";
+            
+            // Fetch and display the homepage data
+            fetch(apiUrl + queryParams)
+                .then(response => response.json())
+                .then(data => populateCryptoTable(data))
+                .catch(error => console.error('Error fetching data:', error));
+        }
+
+        function populateCryptoTable(cryptos) {
+    const tableBody = document.getElementById('cryptoTableBody');
+    tableBody.innerHTML = "";
+
+    cryptos.forEach(crypto => {
+        const row = document.createElement('tr');
+
+        // Determine the font color for the 24h Change
+        const changeColor = crypto.price_change_percentage_24h >= 0 ? 'green' : 'red';
+
+        row.innerHTML = `
+            <td class="fade-update"><img src="${crypto.image}" alt="${crypto.name} logo" class="crypto-logo"></td>
+            <td class="text-bold fade-update">${crypto.name}</td>
+            <td class="fade-update">$${crypto.current_price.toFixed(2)}</td>
+            <td class="fade-update" style="color: ${changeColor};">${crypto.price_change_percentage_24h.toFixed(2)}%</td>
+        `;
+
+        row.addEventListener('click', () => loadCryptoDetails(crypto.id));
+        tableBody.appendChild(row);
+
+        // Apply the fade-in and fade-out effect
+        row.querySelectorAll('.fade-update').forEach(cell => {
+            cell.classList.add('fade-update');
+            setTimeout(() => {
+                cell.classList.remove('fade-update');
+            }, 1500);
+        });
+    });
+}
+
+
+        function loadCryptoDetails(id) {
+            const apiUrl = `https://api.coingecko.com/api/v3/coins/${id}`;
+            fetch(apiUrl)
+                .then(response => response.json())
+                .then(crypto => displayCryptoDetails(crypto))
+                .catch(error => console.error('Error fetching details:', error));
+        }
+
+        function displayCryptoDetails(crypto) {
+            document.getElementById('cryptoName').textContent = crypto.name;
+            document.getElementById('cryptoDescription').textContent = crypto.description.en || "No description available.";
+            document.getElementById('cryptoPrice').textContent = crypto.market_data.current_price.usd.toFixed(2);
+            document.getElementById('cryptoMarketCap').textContent = crypto.market_data.market_cap.usd.toLocaleString();
+            document.getElementById('cryptoHigh24h').textContent = crypto.market_data.high_24h.usd.toFixed(2);
+            document.getElementById('cryptoLow24h').textContent = crypto.market_data.low_24h.usd.toFixed(2);
+
+            document.getElementById('homePage').classList.add('hidden');
+            document.getElementById('detailsPage').classList.remove('hidden');
+            document.getElementById('pageTitle').textContent = `Details for ${crypto.name}`;
+        }
+    </script>
+</body>
+</html>
