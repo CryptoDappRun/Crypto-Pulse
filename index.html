@@ -222,7 +222,7 @@ function fetchSetTitle() {
             // Find Bitcoin data and update the page title
             const bitcoinData = data.find(crypto => crypto.id === 'bitcoin');
             if (bitcoinData) {
-                const bitcoinPrice = bitcoinData.current_price.toFixed(2);
+                const bitcoinPrice = bitcoinData.current_price.toFixed(6);
                 const bitcoinChange = bitcoinData.price_change_percentage_24h.toFixed(2);
                 document.title = `Bitcoin - $${bitcoinPrice} (${bitcoinChange}%)`;
             }
@@ -257,7 +257,7 @@ function fetchSetTitle() {
         row.innerHTML = `
             <td class="fade-update"><img src="${crypto.image}" alt="${crypto.name} logo" class="crypto-logo"></td>
             <td class="text-bold fade-update">${crypto.name}</td>
-            <td class="fade-update">$${crypto.current_price.toFixed(2)}</td>
+            <td class="fade-update">$${crypto.current_price.toFixed(6)}</td>
             <td class="fade-update" style="color: ${changeColor};">${crypto.price_change_percentage_24h.toFixed(2)}%</td>
         `;
 
